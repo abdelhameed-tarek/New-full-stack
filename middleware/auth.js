@@ -12,6 +12,9 @@ exports.auth = function (req, res, next) {
     const decoded = jwt.verify(token, config.get("JWTSecret"));
     // decoded.user because we used user object as a payload in token
     req.user = decoded.user;
+    req.userId = decoded.userId;
+    req.email = decoded.email;
+    req.role = decoded.role;
     next();
   } catch (err) {
     res.status(401).json({ msg: "Authorization dednied" });
