@@ -1,0 +1,4 @@
+{
+  "mongoURI": "mongodb://localhost:27017/E-Commerce-app",
+  "JWTSecret": "hamda_ra7_ygiibb_ay_7aga"
+}
