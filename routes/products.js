@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Category = require("../models/Category");
 const { check, validationResult } = require("express-validator");
 const { auth, isAdmin } = require("../middleware/auth");
+const fileUpload = require("../middleware/file-upload");
 
 router.get("/:pId", async (req, res) => {
   try {
@@ -34,6 +35,7 @@ router.get("/", async (req, res) => {
 
 router.post(
   "/create/:userId",
+  fileUpload.single("image"),
   [
     check("name", "Name is required")
       .not()

@@ -36,10 +36,10 @@ const ProductSchema = new mongoose.Schema(
       type: Boolean,
       required: false,
     },
-    // photo: {
-    //   data: Buffer,
-    //   contentType: String,
-    // },
+    image: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
