@@ -5,7 +5,9 @@ const User = require("../models/User");
 const Category = require("../models/Category");
 const { check, validationResult } = require("express-validator");
 const { auth, isAdmin } = require("../middleware/auth");
-const fileUpload = require("../middleware/file-upload");
+const formidable = require("formidable");
+const _ = require("lodash");
+const fs = require("fs");
 
 router.get("/:pId", async (req, res) => {
   try {
@@ -33,105 +35,199 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post(
-  "/create/:userId",
-  fileUpload.single("image"),
-  [
-    check("name", "Name is required")
-      .not()
-      .isEmpty()
-      .isLength({ min: 5 })
-      .withMessage("Name must be more then 5 characters"),
-    check("description", "Description is required").not().isEmpty(),
-    check("price", "Price is required").not().isEmpty(),
-    check("quantity", "Quantity is required").not().isEmpty(),
-    check("shipping", "Shipping is required").not().isEmpty(),
-    check("category", "Category is required").not().isEmpty(),
-  ],
-  auth,
-  isAdmin,
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+router.post("/create/:userId", auth, isAdmin, async (req, res) => {
+  let product;
+  let user = await User.findById(req.params.userId);
+  if (!user) {
+    return res.status(400).json({ msg: "User not found" });
+  }
+  req.profile = user;
+  let form = new formidable.IncomingForm();
+  form.keepExtensions = true;
+  form.parse(req, async (err, fields, files) => {
+    if (err || !files) {
+      return res.status(400).json({ msg: "please enter a vaild photo" });
     }
+    const { name, description, price, category, quantity, shipping } = fields;
 
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(400).json({ msg: "User not found" });
-    }
-    req.user = user;
-
-    const { name, description, price, quantity, shipping, category } = req.body;
-    try {
-      let product = new Product({
-        name,
-        price,
-        description,
-        quantity,
-        shipping,
-        category,
+    if (
+      !name ||
+      !description ||
+      !price ||
+      !category ||
+      !quantity ||
+      !shipping
+    ) {
+      return res.status(400).json({
+        error: "All fields are required",
       });
-      await product.save();
-      res.json(product);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ msg: "Server error" });
     }
+
+    product = new Product(fields);
+
+    if (!files.photo) {
+      return res.status(400).json({ msg: "please enter a vaild photo" });
+    } else {
+      product.photo.data = fs.readFileSync(files.photo.path);
+      product.photo.contentType = files.photo.type;
+    }
+    await product.save();
+    if (err || !product) {
+      return res.status(400).json({ msg: "server error" });
+    }
+    res.json(product);
+  });
+});
+
+// router.post(
+//   "/create/:userId",
+//   [
+//     check("name", "Name is required")
+//       .not()
+//       .isEmpty()
+//       .isLength({ min: 5 })
+//       .withMessage("Name must be more then 5 characters"),
+//     check("description", "Description is required").not().isEmpty(),
+//     check("price", "Price is required").not().isEmpty(),
+//     check("quantity", "Quantity is required").not().isEmpty(),
+//     check("shipping", "Shipping is required").not().isEmpty(),
+//     check("category", "Category is required").not().isEmpty(),
+//   ],
+//   auth,
+//   isAdmin,
+//   async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     const user = await User.findById(req.params.userId);
+//     if (!user) {
+//       return res.status(400).json({ msg: "User not found" });
+//     }
+//     req.user = user;
+
+//     const { name, description, price, quantity, shipping, category } = req.body;
+//     try {
+//       let product = new Product({
+//         name,
+//         price,
+//         description,
+//         quantity,
+//         shipping,
+//         category,
+//       });
+//       await product.save();
+//       res.json(product);
+//     } catch (err) {
+//       console.error(err.message);
+//       res.status(500).json({ msg: "Server error" });
+//     }
+//   }
+// );
+
+router.put("/update/:pId/:userId", auth, isAdmin, async (req, res) => {
+  let product;
+
+  product = await Product.findById(req.params.pId);
+  if (!product) {
+    return res.status(400).json({ msg: "Product not found" });
   }
-);
 
-router.put(
-  "/update/:pId/:userId",
-  [
-    check("name", "Name is required")
-      .not()
-      .isEmpty()
-      .isLength({ min: 5 })
-      .withMessage("Name must be more then 5 characters"),
-    check("description", "Description is required").not().isEmpty(),
-    check("price", "Price is required").not().isEmpty(),
-    check("quantity", "Quantity is required").not().isEmpty(),
-    check("shipping", "Shipping is required").not().isEmpty(),
-    check("category", "Category is required").not().isEmpty(),
-  ],
-  auth,
-  isAdmin,
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const product = await Product.findById(req.params.pId);
-    if (!product) {
-      return res.status(400).json({ msg: "Product not found" });
-    }
-
-    req.product = product;
-
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(400).json({ msg: "User not found" });
-    }
-    req.user = user;
-
-    const { name, description, price, quantity, shipping, category } = req.body;
-    try {
-      product.name = name;
-      product.description = description;
-      product.price = price;
-      product.quantity = quantity;
-      product.shipping = shipping;
-      product.category = category;
-      await product.save();
-      res.json(product);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).json({ msg: "Server error" });
-    }
+  let user = await User.findById(req.params.userId);
+  if (!user) {
+    return res.status(400).json({ msg: "User not found" });
   }
-);
+  req.profile = user;
+
+  let form = new formidable.IncomingForm();
+  form.keepExtensions = true;
+  form.parse(req, async (err, fields, files) => {
+    if (err || !files) {
+      return res.status(400).json({ msg: "please enter a vaild photo" });
+    }
+    const { name, description, price, category, quantity, shipping } = fields;
+
+    if (
+      !name ||
+      !description ||
+      !price ||
+      !category ||
+      !quantity ||
+      !shipping
+    ) {
+      return res.status(400).json({
+        error: "All fields are required",
+      });
+    }
+
+    product = _.extend(product, fields);
+
+    if (!files.photo) {
+      return res.status(400).json({ msg: "please enter a vaild photo" });
+    } else {
+      product.photo.data = fs.readFileSync(files.photo.path);
+      product.photo.contentType = files.photo.type;
+    }
+    await product.save();
+    if (err || !product) {
+      return res.status(400).json({ msg: "server error" });
+    }
+    res.json(product);
+  });
+});
+
+// router.put(
+//   "/update/:pId/:userId",
+//   [
+//     check("name", "Name is required")
+//       .not()
+//       .isEmpty()
+//       .isLength({ min: 5 })
+//       .withMessage("Name must be more then 5 characters"),
+//     check("description", "Description is required").not().isEmpty(),
+//     check("price", "Price is required").not().isEmpty(),
+//     check("quantity", "Quantity is required").not().isEmpty(),
+//     check("shipping", "Shipping is required").not().isEmpty(),
+//     check("category", "Category is required").not().isEmpty(),
+//   ],
+//   auth,
+//   isAdmin,
+//   async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty()) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+
+//     const product = await Product.findById(req.params.pId);
+//     if (!product) {
+//       return res.status(400).json({ msg: "Product not found" });
+//     }
+
+//     req.product = product;
+
+//     const user = await User.findById(req.params.userId);
+//     if (!user) {
+//       return res.status(400).json({ msg: "User not found" });
+//     }
+//     req.user = user;
+
+//     const { name, description, price, quantity, shipping, category } = req.body;
+//     try {
+//       product.name = name;
+//       product.description = description;
+//       product.price = price;
+//       product.quantity = quantity;
+//       product.shipping = shipping;
+//       product.category = category;
+//       await product.save();
+//       res.json(product);
+//     } catch (err) {
+//       console.error(err.message);
+//       res.status(500).json({ msg: "Server error" });
+//     }
+//   }
+// );
 
 router.delete("/:pId/:userId", async (req, res) => {
   const product = await Product.findById(req.params.pId);
