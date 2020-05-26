@@ -15,7 +15,7 @@ const AddCategory = ({
 
   const onSubmit = (e) => {
     e.preventDefault();
-    addCategory(user._id, { name });
+    addCategory({ name });
   };
 
   const newCategoryForm = () => (

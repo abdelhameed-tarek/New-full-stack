@@ -23,6 +23,15 @@ const NavBar = ({
           Home
         </Link>
       </li>
+      <li className="nav-item active">
+        <Link
+          className="nav-link"
+          style={isActive(history, "/shop")}
+          to="/shop"
+        >
+          Shop
+        </Link>
+      </li>
       {isAuthenticated && !loading && user.role === 0 && (
         <li className="nav-item active">
           <Link
@@ -70,6 +79,15 @@ const NavBar = ({
       <li className="nav-item active">
         <Link className="nav-link" style={isActive(history, "/")} to="/">
           Home
+        </Link>
+      </li>
+      <li className="nav-item active">
+        <Link
+          className="nav-link"
+          style={isActive(history, "/shop")}
+          to="/shop"
+        >
+          Shop
         </Link>
       </li>
       {isAuthenticated && !loading && user.role === 0 && (

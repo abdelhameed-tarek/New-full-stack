@@ -9,6 +9,8 @@ import PrivateRoute from "./routing/PrivateRoute";
 import AdminRoute from "./routing/AdminRoute";
 import AddCategory from "./admin/AddCategory";
 import AddProduct from "./admin/AddProduct";
+import Shop from "./core/Shop";
+import Product from "./core/Product";
 
 import setAuthToken from "./utils/setAuthToken";
 import { loadUser } from "./actions/auth";
@@ -44,6 +46,8 @@ const App = () => {
           />
           <AdminRoute exact path="/create/category" component={AddCategory} />
           <AdminRoute exact path="/create/product" component={AddProduct} />
+          <Route path="/shop" component={Shop} />
+          <Route path="/product/:id" component={Product} />
         </Switch>
       </Router>
     </Provider>

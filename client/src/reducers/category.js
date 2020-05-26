@@ -1,4 +1,8 @@
-import { CREATE_CATEGORY, CREATE_CATEGORY_FAIL } from "../actions/types";
+import {
+  CREATE_CATEGORY,
+  GET_CATEGORIES,
+  CATEGORY_ERROR,
+} from "../actions/types";
 
 const initialState = {
   categories: [],
@@ -17,7 +21,13 @@ export default function (state = initialState, action) {
         category: payload,
         loading: false,
       };
-    case CREATE_CATEGORY_FAIL:
+    case GET_CATEGORIES:
+      return {
+        ...state,
+        categories: payload,
+        loading: false,
+      };
+    case CATEGORY_ERROR:
       return {
         ...state,
         loading: false,

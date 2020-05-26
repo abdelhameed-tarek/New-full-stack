@@ -6,7 +6,7 @@ const { auth, isAdmin } = require("../middleware/auth");
 const User = require("../models/User");
 
 router.post(
-  "/create/:userId",
+  "/create",
   [[check("name", "Name is Required").not().isEmpty()]],
   auth,
   isAdmin,
@@ -16,12 +16,13 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    let user = await User.findById(req.params.userId);
+    let user = await User.findById(req.user.id);
     if (!user) {
       return res.status(400).json({ msg: "User not found" });
     }
-
-    req.profile = user;
+    if (user.role === 0) {
+      return res.status(401).json({ msg: "Admin Only,Not Autherorized" });
+    }
 
     const { name } = req.body;
     try {

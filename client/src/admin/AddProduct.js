@@ -4,19 +4,22 @@ import { connect } from "react-redux";
 import Layout from "../core/Layout";
 import Alert from "../core/Alert";
 import { addProduct } from "../actions/product";
+import { getCategories } from "../actions/category";
 import { Link } from "react-router-dom";
 
 const AddProduct = ({
+  auth: { isAuthenticated, user },
+  categories: { categories, loading },
   addProduct,
-  auth: { isAuthenticated, loading, user },
+  getCategories,
 }) => {
-  const [values, setvalues] = useState({
+  const [values, setValues] = useState({
     name: "",
     description: "",
     price: "",
     category: "",
-    quantity: "",
     shipping: "",
+    quantity: "",
     photo: "",
     formData: "",
   });
@@ -26,29 +29,32 @@ const AddProduct = ({
     description,
     price,
     category,
-    quantity,
     shipping,
-    image,
+    quantity,
     formData,
   } = values;
 
   useEffect(() => {
-    setvalues({ ...values, formData: new FormData() });
+    getCategories();
+    setValues({ ...values, formData: new FormData() });
   }, []);
 
-  const onChange = (name) => (e) => {
-    const value = name === "image" ? e.target.files[0] : e.target.value;
+  const handleChange = (name) => (event) => {
+    const value = name === "photo" ? event.target.files[0] : event.target.value;
     formData.set(name, value);
-    setvalues({ ...values, [name]: value });
+    setValues({
+      ...values,
+      [name]: value,
+    });
   };
 
-  const onSubmit = (e) => {
+  const clickSubmit = (e) => {
     e.preventDefault();
-    addProduct(user._id, formData);
+    addProduct(formData);
   };
 
   const newProductForm = () => (
-    <form className="mb-3" onSubmit={(e) => onSubmit(e)}>
+    <form className="mb-3" onSubmit={clickSubmit}>
       <h4>Post Photo</h4>
       <div className="form-group">
         <label className="btn btn-secondary">
@@ -56,7 +62,7 @@ const AddProduct = ({
             type="file"
             name="image"
             accept="image/*"
-            onChange={(e) => onChange(e)}
+            onChange={handleChange("photo")}
           />
         </label>
       </div>
@@ -64,19 +70,16 @@ const AddProduct = ({
         <label className="text-muted">Name</label>
         <input
           type="text"
-          name="name"
           value={name}
-          onChange={(e) => onChange(e)}
+          onChange={handleChange("name")}
           className="form-control"
         />
       </div>
       <div className="form-group">
         <label className="text-muted">Product Description</label>
         <textarea
-          type="text"
-          name="description"
           value={description}
-          onChange={(e) => onChange(e)}
+          onChange={handleChange("description")}
           className="form-control"
         />
       </div>
@@ -84,33 +87,36 @@ const AddProduct = ({
         <label className="text-muted">Price</label>
         <input
           type="number"
-          name="price"
           value={price}
-          onChange={(e) => onChange(e)}
+          onChange={handleChange("price")}
           className="form-control"
         />
       </div>
       <div className="form-group">
         <label className="text-muted">Category</label>
-        <select onChange={(e) => onChange(e)} className="form-control">
-          <option>option a</option>
-          <option>option b</option>
-          <option>option c</option>
+        <select onChange={handleChange("category")} className="form-control">
+          <option>Please select</option>
+          {categories &&
+            categories.map((c, i) => (
+              <option key={i} value={c._id}>
+                {c.name}
+              </option>
+            ))}
         </select>
       </div>
       <div className="form-group">
         <label className="text-muted">Quantity</label>
         <input
           type="number"
-          name="quantity"
           value={quantity}
-          onChange={(e) => onChange(e)}
+          onChange={handleChange("quantity")}
           className="form-control"
         />
       </div>
       <div className="form-group">
-        <label className="text-muted">Shiiping</label>
-        <select onChange={(e) => onChange(e)} className="form-control">
+        <label className="text-muted">Shipping</label>
+        <select onChange={handleChange("shipping")} className="form-control">
+          <option>Please select</option>
           <option value="0">No</option>
           <option value="1">Yes</option>
         </select>
@@ -147,10 +153,14 @@ const AddProduct = ({
 AddProduct.propTypes = {
   auth: PropTypes.object.isRequired,
   addProduct: PropTypes.func.isRequired,
+  categories: PropTypes.object.isRequired,
 };
 
 const mapStateToProps = (state) => ({
   auth: state.auth,
+  categories: state.category,
 });
 
-export default connect(mapStateToProps, { addProduct })(AddProduct);
+export default connect(mapStateToProps, { addProduct, getCategories })(
+  AddProduct
+);

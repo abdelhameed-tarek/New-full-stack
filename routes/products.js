@@ -11,7 +11,9 @@ const fs = require("fs");
 
 router.get("/:pId", async (req, res) => {
   try {
-    let product = await Product.findById(req.params.pId);
+    let product = await Product.findById(req.params.pId)
+      .select("-photo")
+      .populate("category");
     if (!product) {
       return res.status(400).json({ msg: "Product not found" });
     }
@@ -35,9 +37,9 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/create/:userId", auth, isAdmin, async (req, res) => {
+router.post("/create", auth, async (req, res) => {
   let product;
-  let user = await User.findById(req.params.userId);
+  let user = await User.findById(req.user.id);
   if (!user) {
     return res.status(400).json({ msg: "User not found" });
   }
@@ -177,58 +179,6 @@ router.put("/update/:pId/:userId", auth, isAdmin, async (req, res) => {
   });
 });
 
-// router.put(
-//   "/update/:pId/:userId",
-//   [
-//     check("name", "Name is required")
-//       .not()
-//       .isEmpty()
-//       .isLength({ min: 5 })
-//       .withMessage("Name must be more then 5 characters"),
-//     check("description", "Description is required").not().isEmpty(),
-//     check("price", "Price is required").not().isEmpty(),
-//     check("quantity", "Quantity is required").not().isEmpty(),
-//     check("shipping", "Shipping is required").not().isEmpty(),
-//     check("category", "Category is required").not().isEmpty(),
-//   ],
-//   auth,
-//   isAdmin,
-//   async (req, res) => {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(400).json({ errors: errors.array() });
-//     }
-
-//     const product = await Product.findById(req.params.pId);
-//     if (!product) {
-//       return res.status(400).json({ msg: "Product not found" });
-//     }
-
-//     req.product = product;
-
-//     const user = await User.findById(req.params.userId);
-//     if (!user) {
-//       return res.status(400).json({ msg: "User not found" });
-//     }
-//     req.user = user;
-
-//     const { name, description, price, quantity, shipping, category } = req.body;
-//     try {
-//       product.name = name;
-//       product.description = description;
-//       product.price = price;
-//       product.quantity = quantity;
-//       product.shipping = shipping;
-//       product.category = category;
-//       await product.save();
-//       res.json(product);
-//     } catch (err) {
-//       console.error(err.message);
-//       res.status(500).json({ msg: "Server error" });
-//     }
-//   }
-// );
-
 router.delete("/:pId/:userId", async (req, res) => {
   const product = await Product.findById(req.params.pId);
   if (!product) {
@@ -260,6 +210,7 @@ router.get("/list/of/products", async (req, res) => {
     let limit = req.query.limit ? parseInt(req.query.limit) : 6;
 
     let products = await Product.find()
+      .select("-photo")
       .populate("category")
       .sort([[sortBy, order]])
       .limit(limit);
@@ -283,6 +234,7 @@ router.get("/related/products/:pId", async (req, res) => {
       _id: { $ne: req.product },
       category: req.product.category,
     })
+      .select("-photo")
       .limit(limit)
       .populate("category");
     res.json(product);
@@ -292,39 +244,82 @@ router.get("/related/products/:pId", async (req, res) => {
   }
 });
 
-router.post("/list/by/search", async (req, res) => {
-  try {
-    let order = req.body.order ? req.body.order : "desc";
-    let sortBy = req.body.sortBy ? req.body.sortBy : "_id";
-    let limit = req.body.limit ? parseInt(req.body.limit) : 4;
-    let skip = parseInt(req.body.skip);
-    let findArgs = {};
+router.post("/list/by/search", (req, res) => {
+  let order = req.body.order ? req.body.order : "desc";
+  let sortBy = req.body.sortBy ? req.body.sortBy : "_id";
+  let limit = req.body.limit ? parseInt(req.body.limit) : 6;
+  let skip = parseInt(req.body.skip);
+  let findArgs = {};
 
-    for (let key in req.body.filters) {
-      if (req.body.filters[key].length > 0) {
-        if (key === "price") {
-          // gte -  greater than price [0-10]
-          // lte - less than
-          findArgs[key] = {
-            $gte: req.body.filters[key][0],
-            $lte: req.body.filters[key][1],
-          };
-        } else {
-          findArgs[key] = req.body.filters[key];
-        }
+  // console.log(order, sortBy, limit, skip, req.body.filters);
+  // console.log("findArgs", findArgs);
+
+  for (let key in req.body.filters) {
+    if (req.body.filters[key].length > 0) {
+      if (key === "price") {
+        // gte -  greater than price [0-10]
+        // lte - less than
+        findArgs[key] = {
+          $gte: req.body.filters[key][0],
+          $lte: req.body.filters[key][1],
+        };
+      } else {
+        findArgs[key] = req.body.filters[key];
       }
     }
-
-    let products = await Product.find(findArgs)
-      .populate("category")
-      .sort([[sortBy, order]])
-      .skip(skip)
-      .limit(limit);
-    res.json(products);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ msg: "Server error" });
   }
+
+  Product.find(findArgs)
+    .select("-photo")
+    .populate("category")
+    .sort([[sortBy, order]])
+    .skip(skip)
+    .limit(limit)
+    .exec((err, data) => {
+      if (err) {
+        return res.status(400).json({
+          msg: "Products not found",
+        });
+      }
+      res.json({ size: data.length, data });
+    });
+  // try {
+  //   let order = req.body.order ? req.body.order : "desc";
+  //   let sortBy = req.body.sortBy ? req.body.sortBy : "_id";
+  //   let limit = req.body.limit ? parseInt(req.body.limit) : 6;
+  //   let skip = parseInt(req.body.skip);
+  //   let findArgs = {};
+
+  //   for (let key in req.body.filters) {
+  //     if (req.body.filters[key].length > 0) {
+  //       if (key === "price") {
+  //         // gte -  greater than price [0-10]
+  //         // lte - less than
+  //         findArgs[key] = {
+  //           $gte: req.body.filters[key][0],
+  //           $lte: req.body.filters[key][1],
+  //         };
+  //       } else {
+  //         findArgs[key] = req.body.filters[key];
+  //       }
+  //     }
+  //   }
+
+  //   let products = await Product.find(findArgs)
+  //     .select("-photo")
+  //     .populate("category")
+  //     .sort([[sortBy, order]])
+  //     .skip(skip)
+  //     .limit(limit);
+  //   if (!products) {
+  //     return res.status(400).json({ msg: "Not found" });
+  //   } else {
+  //     res.json({ size: products.length, data: products });
+  //   }
+  // } catch (err) {
+  //   console.error(err.message);
+  //   res.status(500).json({ msg: "Server error" });
+  // }
 });
 
 router.get("/list/categories", async (req, res) => {
@@ -337,21 +332,42 @@ router.get("/list/categories", async (req, res) => {
   }
 });
 
-// router.get("/search", async (req, res) => {
-//   try {
-//     const query = {};
-//     if (req.query.search) {
-//       query.name = { $regex: req.query.search, $options: "i" };
-//     }
-//     if (req.query.category && req.query.category != "All") {
-//       query.category = req.query.category;
-//     }
-//     let products = await Product.find(query);
-//     res.json(products);
-//   } catch (err) {
-//     console.error(err.message);
-//     res.status(500).json({ msg: "Server error" });
-//   }
-// });
+router.get("/photo/:pId", async (req, res, next) => {
+  try {
+    let product = await Product.findById(req.params.pId);
+    if (!product) {
+      return res.status(400).json({
+        msg: "Product Not Found",
+      });
+    }
+    req.product = product;
+
+    if (req.product.photo.data) {
+      res.set("Content-Type", req.product.photo.contentType);
+      return res.send(req.product.photo.data);
+    }
+    next();
+  } catch (err) {
+    res.status(500).json({ msg: "Server Error" });
+  }
+});
+
+router.get("/products/search", (req, res) => {
+  const query = {};
+  if (req.query.search) {
+    query.name = { $regex: req.query.search, $options: "i" };
+    if (req.query.category && req.query.category !== "All") {
+      query.category = req.query.category;
+    }
+    Product.find(query, (err, products) => {
+      if (err) {
+        return res.status(400).json({
+          msg: "not found",
+        });
+      }
+      res.json(products);
+    }).select("-photo");
+  }
+});
 
 module.exports = router;

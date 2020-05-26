@@ -1,5 +1,6 @@
 import React, { Fragment } from "react";
 import NavBar from "./NavBar";
+import "../styles.css";
 
 const Layout = ({
   title = "Title",
